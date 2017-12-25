@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 import pandas as pd
-from _pickle import cPickle
+import _pickle as cPickle
 import itertools
 
 
