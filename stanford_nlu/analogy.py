@@ -1,8 +1,9 @@
 import sys
 import numpy as np
 import pandas as pd
-import pickle
+from _pickle import cPickle
 import itertools
+
 
 CACHED = ""
 WORD_COUNT_FILE = "vsmdata/imdb-wordword.csv"
@@ -50,7 +51,7 @@ def find_match(target, word_vec, word_labels, comp_func):
 
 
 def GloVe(mat, n, word_labels, xmax = 100, alpha=0.75, iterations=100,
-	learning_rate=0.005, display_progress=True):
+	learning_rate=0.05, display_progress=True):
 	"""
 	Input:
 		mat (np.array): The count matrix
@@ -74,13 +75,16 @@ def GloVe(mat, n, word_labels, xmax = 100, alpha=0.75, iterations=100,
 
 	indices = list(range(num_words))
 
+	prev_epoch_error = None
+
 	for iteration in range(iterations):
 
 		error = 0.0
 
 		for i, j in itertools.product(indices, indices):
 			if mat[i,j] > 0.0:
-				print("Iteration #{}, i={}, j={} and error={}".format(iteration, i, j, error))
+				print("Iteration #{}/{}, i={}, j={} and latest error={}".\
+					format(iteration, iterations, i, j, prev_epoch_error))
 
 				weight = (mat[i,j]/xmax) ** alpha if mat[i,j] < xmax else 1.0
 
@@ -104,6 +108,7 @@ def GloVe(mat, n, word_labels, xmax = 100, alpha=0.75, iterations=100,
 				error += 0.5 * weight * (diff**2)
 
 		if display_progress:
+			prev_epoch_error = error
 			print ("iteration {}: error {}".format(iteration, error))
 
 	import ipdb; ipdb.set_trace()
@@ -134,11 +139,11 @@ def main(ABC, verbose=False):
 		word_labels = list(wc.index)
 		count = wc.values # count is numpy array
 
-		pickle.dump((word_labels, count), open(SAVE_COUNT, "wb"))
+		cPickle.dump((word_labels, count), open(SAVE_COUNT, "wb"))
 
 	else:
 
-		(word_labels, count) = pickle.load(open(SAVE_COUNT))
+		(word_labels, count) = cPickle.load(open(SAVE_COUNT))
 
 	## Use GloVe to get embeddings
 	embed = GloVe(count, N, word_labels)
@@ -168,6 +173,6 @@ if __name__ == "__main__":
 	# 		break
 
 	ABC = ["hello" , "hi", "bye"]
-
+	import ipdb; ipdb.set_trace()
 	main(ABC)
 
