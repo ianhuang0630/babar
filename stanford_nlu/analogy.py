@@ -83,8 +83,8 @@ def GloVe(mat, n, word_labels, xmax = 100, alpha=0.75, iterations=100,
 
 		for i, j in itertools.product(indices, indices):
 			if mat[i,j] > 0.0:
-				print("Iteration #{}/{}, i={}, j={} and latest error={}".\
-					format(iteration, iterations, i, j, prev_epoch_error))
+				print("Iteration #{}/{}, i={}, j={}, latest error = {}, current error within epoch: {}".\
+					format(iteration, iterations, i, j, prev_epoch_error, error))
 
 				weight = (mat[i,j]/xmax) ** alpha if mat[i,j] < xmax else 1.0
 
@@ -146,7 +146,7 @@ def main(ABC, verbose=False):
 		(word_labels, count) = cPickle.load(open(SAVE_COUNT))
 
 	## Use GloVe to get embeddings
-	embed = GloVe(count, N, word_labels)
+	embed = GloVe(count, N, word_labels, learning_rate = 0.01)
 
 	## calculating expected embedding of target vector
 
