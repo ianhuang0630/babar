@@ -4,7 +4,6 @@ import pandas as pd
 import _pickle as cPickle
 import itertools
 
-
 CACHED = ""
 WORD_COUNT_FILE = "vsmdata/imdb-wordword.csv"
 SAVE_COUNT = "vsmdata/count_labels.pkl"
