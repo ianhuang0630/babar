@@ -87,6 +87,24 @@ class Obj:
 	def __repr__(self):
 		return self.name
 
+
+class WorldBuilder:
+	"""
+	A class that builds the relations of objects in relation to eachother
+	using semantics extraction and NLP.
+	"""
+	def __init__(self, text):
+
+		self.desc = text
+
+	def build(self):
+		"""
+		Implements relations extraction from self.text
+		"""
+
+		pass
+
+
 class Question:
 	def __init__(self, origin, target):
 		# Ideally the input should be a string, and the class question would use
@@ -100,6 +118,7 @@ class Question:
 		"""
 
 		# describe the location of the target in relation to the origin
+		
 		self.origin = origin
 		self.target = target
 
@@ -135,7 +154,6 @@ class Question:
 
 		trans_el_stack = []
 
-
 		while next_obj != None:
 			# add to the front of the list next_obj.prev[1]
 			# add next_obj.prev[0]
@@ -147,6 +165,8 @@ class Question:
 			else:
 				next_obj = None
 
+		## inverting the stack
+
 		trans_el = []
 
 		while trans_el_stack:
@@ -157,10 +177,14 @@ class Question:
 	def form_answer(self):
 		"""
 		Vanilla implementation of how the computer would give an answer
+		
+		We could totally replace this part with some fancy natural language 
+		generation, with random probabilities of describing the objects under
+		question. (e.g. the *white* cat is under the tree...)
+
 		"""
 
 		trans_obj = self.get_path()
-
 
 		answer = ""
 		noun_count = 0
