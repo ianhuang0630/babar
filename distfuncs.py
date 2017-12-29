@@ -1,4 +1,6 @@
 import scipy
+import numpy as np
+import scipy.spatial.distance
 
 def euclidean(u, v):    
     """Eculidean distance between 1d np.arrays `u` and `v`, which must 
@@ -29,3 +31,6 @@ def jaccard(u, v):
     # The scipy implementation is for binary vectors only. 
     # This version is more general.
     return 1.0 - (matching(u, v) / np.sum(np.maximum(u, v)))
+
+def normalize(u):
+    return u/np.sqrt(u.dot(u))
