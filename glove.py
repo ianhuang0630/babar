@@ -17,8 +17,6 @@ class Glove:
 
 		self.dist_func = dist_func
 
-		import ipdb; ipdb.set_trace()
-
 	def findNNeighbors(self, N, word, dist_func=None):
 		"""
 		Inputs:
