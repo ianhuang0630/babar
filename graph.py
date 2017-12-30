@@ -88,23 +88,6 @@ class Obj:
 		return self.name
 
 
-class WorldBuilder:
-	"""
-	A class that builds the relations of objects in relation to eachother
-	using semantics extraction and NLP.
-	"""
-	def __init__(self, text):
-
-		self.desc = text
-
-	def build(self):
-		"""
-		Implements relations extraction from self.text
-		"""
-
-		pass
-
-
 class Question:
 	def __init__(self, origin, target):
 		# Ideally the input should be a string, and the class question would use
