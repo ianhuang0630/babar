@@ -37,7 +37,6 @@ class PennTreeLoader:
 		"""
 
 		all_files = []
-		import ipdb; ipdb.set_trace()
 
 		for file in os.listdir(self.raw_path):
 			if file != "README":
@@ -74,29 +73,69 @@ class PennTreeLoader:
 
 		"""
 
-		for file in os.listdir(self.raw_path):
+		over_all_files = []
+
+		import ipdb; ipdb.set_trace()
+
+		for file in os.listdir(self.parsed_path):
 			if file != "README":
+
 				## stacks to keep track of nesting layers
-				stack = 0
+				with open(os.path.join(self.parsed_path, file)) as f:
 
-				for line in file:
-					for element in line:
-						if element == "(":
-							stack += 1
+					# every bracket is accompanied by a label.
+					# if bracket starts with target, then chop until the
+					# corresponding closing bracket is closed. First word
+					# in this bracket is marked "B-NP", and all others are 
+					# marked "I-NP".
 
-						if element == ")":
-							stack -= 1
+					# otherwise, all words until the next open bracket are 
+					# marked "O"
 
-						#TODO: complete this
+					stack = 0
 
-				
+					string = ""
 
-	def label_rules(self, rules={"O": 0, "B-NP": 1, "I-NP": 2}):
+					for line in f:						
+						for element in line:
+
+							if element == "(":
+								stack += 1
+
+							if element == ")":
+								stack -= 1
+								## process previous string
+
+							if stack != 0:
+								string += element
+
+							if stack == 0:
+								## process the block
+								over_all_files.append(self.process(string))
+
+	def process(self, string):
 		"""
 		Inputs:
+			string (str): input string, e.g.
+		Returns:
+			labels (tuple): label for every word in the string.
+		"""
+
+		pass
+
+	def label_rules(self, label, rules={"O": 0, "B-NP": 1, "I-NP": 2}):
+		"""
+		Inputs:
+			label (str): Label
 			rules (dict): dictionary specifying the rules
 		
 		"""
+
+		if label not in rules:
+			raise ValueError("Label not in rules.")
+		else:
+			return rules[label]
+
 
 
 
@@ -105,7 +144,7 @@ class PennTreeLoader:
 def main():
 
 	pennloader = PennTreeLoader("/Users/ian.huang/Documents/Projects/babar/treebank/")
-	print(pennloader.readRaw())
+	pennloader.readParsed()
 
 if __name__ == "__main__":
 	main()
