@@ -34,6 +34,7 @@ class PennTreeLoader:
 
 		self.raw = None
 		self.parsed = None
+		self.tagged = None
 
 	def readRaw(self):
 		"""
@@ -146,6 +147,49 @@ class PennTreeLoader:
 
 		return parsed_labels
 
+	def readPOS(self):
+		"""
+		Returns:
+			pos_tags (np.array): each element is a file, and each element is a
+				tuple containing the POS labeling of each word.
+		"""
+
+		all_files = []
+
+		for file in os.listdir(self.tagged_path):
+			if file != "README":
+
+				all_files.append([])
+
+				words = []
+
+				with open(os.path.join(self.tagged_path,file)) as f:
+					for line in f:
+						if line != "\n":
+
+							if line[0] == "[":
+								words.extend(line[1:line.index("]")].split())
+
+							# if line[0] == "[" and line[-2:] == "]\n":
+							# 	words.extend(line[1:-2].split())
+
+							else:
+								for word in line.split():
+									words.append(word)
+
+				for element in words:
+					if "/" in element:
+						all_files[-1].append(element[element.index("/")+1:])
+
+					else:
+						print(" '/' not in {} in {}".format(element, file))
+
+				all_files[-1] = tuple(all_files[-1])
+
+		pos_tags = np.array(all_files)
+		self.tagged = pos_tags
+
+		return pos_tags
 
 	def process(self, string, target="NP", gram_role=False):
 		"""
@@ -227,12 +271,15 @@ class PennTreeLoader:
 def main():
 
 	pennloader = PennTreeLoader("/Users/ian.huang/Documents/Projects/babar/treebank/")
+	
+
 	pennloader.readRaw()
 	pennloader.readParsed()
+	pennloader.readPOS()
 
 	print("Length of list for rawdata: {}".format(pennloader.raw.size))
-	print("Lenght of list for parseddata: {}".format(pennloader.parsed.size))
-
+	print("Length of list for parseddata: {}".format(pennloader.parsed.size))
+	print("length of list for POSdata: {}".format(pennloader.tagged.size))
 
 if __name__ == "__main__":
 	main()
