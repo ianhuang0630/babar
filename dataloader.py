@@ -2,6 +2,11 @@ import numpy as np
 import pickle
 import os
 
+
+# TODO: for readRaw and readParsed, also return the name of the file from where
+# the data was read.
+
+
 """
 PennTreeLoader is the data loader for the PennTreeBank data.
 """
@@ -28,6 +33,7 @@ class PennTreeLoader:
 			self.IOB = False
 
 		self.raw = None
+		self.parsed = None
 
 	def readRaw(self):
 		"""
@@ -44,7 +50,21 @@ class PennTreeLoader:
 				with open(os.path.join(self.raw_path, file)) as f:
 					for line in f:
 						if line != "\n" and line != ".START \n":
-							this_file.append(line)
+							
+							## for consistency with readParsed(), readRaw
+							## will consider punctuations as their own word. 
+
+							# TODO: Verify that the following punctations are
+							# individualized by themselves in the parsed files
+							# and use regex to make this part more elegant.
+							for i in range(len(line)):
+								if line[i] == "." or line[i] == "," or \
+									line[i] == ":" or line[i] == ";" or \
+									line[i] == "?" or line[i] == "!":
+
+									line = line[:i] + " " + line[i:]
+
+							this_file.append(tuple(line.split()))
 
 				all_files.append(this_file)
 
@@ -75,10 +95,11 @@ class PennTreeLoader:
 
 		over_all_files = []
 
-		import ipdb; ipdb.set_trace()
 
 		for file in os.listdir(self.parsed_path):
+
 			if file != "README":
+				over_all_files.append([])
 
 				## stacks to keep track of nesting layers
 				with open(os.path.join(self.parsed_path, file)) as f:
@@ -102,26 +123,90 @@ class PennTreeLoader:
 							if element == "(":
 								stack += 1
 
-							if element == ")":
-								stack -= 1
-								## process previous string
-
 							if stack != 0:
 								string += element
 
-							if stack == 0:
-								## process the block
-								over_all_files.append(self.process(string))
+							if element == ")":
+								stack -= 1
 
-	def process(self, string):
+							if stack == 0 and len(string) > 0:
+								## process the block
+								over_all_files[-1].extend(self.process(string))
+								## reset string
+								string = ""
+
+		# TODO: implement option of returning a tree
+		over_all_files = [tuple(ls) for ls in over_all_files]
+
+		parsed_labels = np.array(over_all_files)
+		self.parsed = parsed_labels
+
+		# TODO: an assert statement to verify that every length of every tuple
+		# in self.parsed is the same length as a tuple in self.raw.
+
+		return parsed_labels
+
+
+	def process(self, string, target="NP", gram_role=False):
 		"""
+		*** NOTE ***
+		This labels all punctuations as well. Words are labeled in whole, and
+		not by character.
+
 		Inputs:
-			string (str): input string, e.g.
+			string (str): input string.
+
 		Returns:
 			labels (tuple): label for every word in the string.
 		"""
 
-		pass
+		encoding = []
+		np = False
+		first = False
+
+		for element in string.split():
+
+			# for every element
+			if np:
+				# set either I-NP or B-NP if stack number not = 0
+
+				# if begins with a (, then increment nesting level
+				if element[0] == "(":
+					## increment nesting level
+					stack += 1
+				else:
+					if first:
+						## add B-NP
+						encoding.append(self.label_rules("B-NP"))
+						first = False
+					else:
+						## add I-NP
+						encoding.append(self.label_rules("I-NP"))
+
+					while len(element) > 0 and element[-1] == ")": # in case of multiple )'s
+						element = element[:-1]
+						## decrement nesting level
+						stack -= 1 
+						stack = max(stack, 0)
+
+				# if ends with a ), then 1) add, 2) decrement nesting level
+
+				if stack == 0:
+					np = False
+	
+			elif element[:len(target)+1] == "("+target:
+				## if the tag is seen
+				np = True
+				stack = 1
+				first = True
+
+			# if element is not an irrelevan tag
+			elif element[0] != "(":
+				encoding.append(self.label_rules("O")) # Label "O"
+
+		labels = tuple(encoding)
+
+		return labels
 
 	def label_rules(self, label, rules={"O": 0, "B-NP": 1, "I-NP": 2}):
 		"""
@@ -139,12 +224,15 @@ class PennTreeLoader:
 
 
 
-
-
 def main():
 
 	pennloader = PennTreeLoader("/Users/ian.huang/Documents/Projects/babar/treebank/")
+	pennloader.readRaw()
 	pennloader.readParsed()
+
+	print("Length of list for rawdata: {}".format(pennloader.raw.size))
+	print("Lenght of list for parseddata: {}".format(pennloader.parsed.size))
+
 
 if __name__ == "__main__":
 	main()
