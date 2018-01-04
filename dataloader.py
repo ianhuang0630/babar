@@ -39,6 +39,17 @@ class PennTreeLoader:
 		# field used in readParsed()
 		self.verifiable = False
 
+
+		# PITA = Pain In The Ass
+		self.PITAexceptions = {"-LCB-":"{", 
+								"-RCB-":"}", 
+								"-LRB-":"(", 
+								"-RRB-":")", 
+								"*LCB*":"{",
+								"*RCB*":"}",
+								"*LRB*":"(",
+								"*RRB*":")"}
+
 	def readRaw(self):
 		"""
 		Returns:
@@ -264,6 +275,9 @@ class PennTreeLoader:
 
 			while len(s)>0 and s[-1] == ")":
 				s = s[:-1]
+
+			if s in self.PITAexceptions:
+				s = self.PITAexceptions[s]
 
 			return s
 
