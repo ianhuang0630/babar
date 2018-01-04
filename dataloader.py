@@ -3,6 +3,7 @@ import pickle
 import os
 
 
+
 # TODO: for readRaw and readParsed, also return the name of the file from where
 # the data was read.
 
@@ -179,7 +180,14 @@ class PennTreeLoader:
 
 				for element in words:
 					if "/" in element:
-						all_files[-1].append(element[element.index("/")+1:])
+
+						upto = element.index("/")
+
+						## each element of the tuple is a tuple, first element
+						## containing the word, second element containing the
+						## POS tag.
+
+						all_files[-1].append((element[:upto], element[upto+1:]))
 
 					else:
 						print(" '/' not in {} in {}".format(element, file))
@@ -204,6 +212,16 @@ class PennTreeLoader:
 			labels (tuple): label for every word in the string.
 		"""
 
+		def clean(s):
+
+			while len(s)>0 and s[0] == "(":
+				s = s[1:]
+
+			while len(s)>0 and s[-1] == ")":
+				s = s[:-1]
+
+			return s
+
 		encoding = []
 		np = False
 		first = False
@@ -221,11 +239,13 @@ class PennTreeLoader:
 				else:
 					if first:
 						## add B-NP
-						encoding.append(self.label_rules("B-NP"))
+
+						encoding.append((clean(element), self.label_rules("B-NP")))
 						first = False
 					else:
 						## add I-NP
-						encoding.append(self.label_rules("I-NP"))
+
+						encoding.append((clean(element), self.label_rules("I-NP")))
 
 					while len(element) > 0 and element[-1] == ")": # in case of multiple )'s
 						element = element[:-1]
@@ -246,7 +266,7 @@ class PennTreeLoader:
 
 			# if element is not an irrelevan tag
 			elif element[0] != "(":
-				encoding.append(self.label_rules("O")) # Label "O"
+				encoding.append((clean(element), self.label_rules("O")))
 
 		labels = tuple(encoding)
 
@@ -280,6 +300,8 @@ def main():
 	print("Length of list for rawdata: {}".format(pennloader.raw.size))
 	print("Length of list for parseddata: {}".format(pennloader.parsed.size))
 	print("length of list for POSdata: {}".format(pennloader.tagged.size))
+
+	import ipdb; ipdb.set_trace()
 
 if __name__ == "__main__":
 	main()
