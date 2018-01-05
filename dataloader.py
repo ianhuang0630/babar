@@ -75,7 +75,9 @@ class PennTreeLoader:
 							for i in range(len(line)):
 								if line[i] == "." or line[i] == "," or \
 									line[i] == ":" or line[i] == ";" or \
-									line[i] == "?" or line[i] == "!":
+									line[i] == "?" or line[i] == "!" or \
+									line[i] == "{" or line[i] == "}" or \
+									line[i] == "(" or line[i] == ")":
 
 									line = line[:i] + " " + line[i:]
 
@@ -159,16 +161,25 @@ class PennTreeLoader:
 					finalized = []
 					counter = 0
 
-					for element in temp:
-						if element[0] == self.tagged[file_num][counter][0]:
+					for idx,element in enumerate(temp):
+
+						if element[0] == self.tagged[file_num][counter][0] \
+							or (counter+1 < len(self.tagged[file_num]) and \
+								temp[idx+1][0] == self.tagged[file_num][counter+1][0]):
+							
+							# add to finalized.
 							finalized.append(element)
 							counter += 1
 						else:
-							print("'{}' not in equal to '{}' in POS. skipping".format(element[0], self.tagged[file_num][counter][0]))
+
+							print("'{}' not equal to '{}' in POS. skipping".format(element[0], self.tagged[file_num][counter][0]))
+
+							if counter+1 <len(self.tagged[file_num]):
+								print("'{}' not equal to '{}' in POS, in the next position.".format(temp[idx+1][0], self.tagged[file_num][counter+1][0]))
 
 					## VERY questionable approach, but should be very rare.
 					if counter < len(self.tagged[file_num]):
-						import ipdb; ipdb.set_trace()
+						# import ipdb; ipdb.set_trace()
 
 						print("There are elements in self.tagged that are not in self.parsed. Chopping self.tagged.")
 						self.tagged[file_num] = tuple([self.tagged[file_num][i] for i in range(counter)])
@@ -362,15 +373,13 @@ class PennTreeLoader:
 			A = self.parsed[i]
 			B = self.tagged[i]
 
-
-
 			for j in range(min(len(A), len(B))):
 
 				if A[j][0] != B[j][0]:
-					raise ValueError("parsed and tagged at index {} are not the same. {} != {}".format(j, A[j][0], B[j][0]))
+					print("parsed and tagged at index {} are not the same. {} != {}".format(j, A[j][0], B[j][0]))
 			
 			if len(A) != len(B):
-				print ("parsed[{}] and tagged[{}] are lengths {} and {}.".\
+				raise ValueError("parsed[{}] and tagged[{}] are lengths {} and {}.".\
 				format(i,i, len(A), len(B)))
 
 
