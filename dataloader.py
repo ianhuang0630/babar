@@ -13,11 +13,13 @@ PennTreeLoader is the data loader for the PennTreeBank data.
 """
 class PennTreeLoader:
 
-	def __init__(self, path, NP_tagging_type="IOB"):
+	def __init__(self, path, NP_tagging_type="IOB", verbose=False):
 		"""
 		Input:
 			path (String): path to the Penn Tree bank directory
 		"""
+
+		self.verbose = verbose
 
 		self.path = path
 
@@ -171,17 +173,18 @@ class PennTreeLoader:
 							finalized.append(element)
 							counter += 1
 						else:
+							if self.verbose:
+								print("'{}' not equal to '{}' in POS. skipping".format(element[0], self.tagged[file_num][counter][0]))
 
-							print("'{}' not equal to '{}' in POS. skipping".format(element[0], self.tagged[file_num][counter][0]))
-
-							if counter+1 <len(self.tagged[file_num]):
+							if counter+1 <len(self.tagged[file_num]) and self.verbose:
 								print("'{}' not equal to '{}' in POS, in the next position.".format(temp[idx+1][0], self.tagged[file_num][counter+1][0]))
 
 					## VERY questionable approach, but should be very rare.
 					if counter < len(self.tagged[file_num]):
 						# import ipdb; ipdb.set_trace()
+						if self.verbose:
+							print("There are elements in self.tagged that are not in self.parsed. Chopping self.tagged.")
 
-						print("There are elements in self.tagged that are not in self.parsed. Chopping self.tagged.")
 						self.tagged[file_num] = tuple([self.tagged[file_num][i] for i in range(counter)])
 
 
@@ -255,7 +258,7 @@ class PennTreeLoader:
 
 							all_files[-1].append((element[:upto], element[upto+1:]))
 
-						else:
+						elif self.verbose:
 							print(" '/' not in {} in {}".format(element, file))
 
 					all_files[-1] = tuple(all_files[-1])
@@ -403,7 +406,7 @@ class PennTreeLoader:
 
 def main():
 
-	pennloader = PennTreeLoader("/Users/ian.huang/Documents/Projects/babar/treebank/")
+	pennloader = PennTreeLoader("/Users/ian.huang/Documents/Projects/babar/treebank/", verbose=True)
 	
 
 	pennloader.readRaw()
