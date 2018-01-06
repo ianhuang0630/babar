@@ -9,7 +9,7 @@ import pandas as pd
 from utils import treemethods
 
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, confusion_matrix
 
 from dataloader import PennTreeLoader
 
@@ -74,17 +74,31 @@ class VanillaNPLearner:
 		for (idx, test_tuple) in enumerate(self.pos_test):
 
 			sentence = list(test_tuple)
-			result = cp.parse(sentence) # predicting purely based on POS labeling
+			parsed_sentence = cp.parse(sentence) # predicting purely based on POS labeling
 
 			## TODO: parse result into a list of tuples. This may be in a weird tree structure.
 			# Might have to use a recursive structure, or an inbuilt method in the Tree class
 
-			result = treemethods.tree2labels(result, labeling_type="IOB", rules=LABEL_MAP)
+			result = treemethods.tree2labels(parsed_sentence, labeling_type="IOB", rules=LABEL_MAP)
 			## strip the result tuple of the words in each tuple element (i.e. ())
 
-			result = tuple([label for (_, label) in result])
+			# ################# For Debugging ############################
+			# for i in range(min(len(result), len(self.parsed_test[idx]))):
 
+			# 	# compare result[i][0] to self.parsed_test[idx][i][0]
+
+			# 	if result[i][0] != self.parsed_test[idx][i][0]:
+			# 		print("{} != {}".format(result[i][0], self.parsed_test[idx][i][0])) 
+			# 		print (sentence[i][0]) 
+			# 		raise ValueError
+
+			# ############################################################
+
+
+
+			result = tuple([label for (_, label) in result])
 			assert len(result) == len(self.parsed_test[idx]), "idx = {}".format(idx)
+			
 			lis.append(result)
 
 
@@ -97,8 +111,6 @@ class VanillaNPLearner:
 		Comparing output of predict() with self.parsed_test.
 			
 		"""
-
-		import ipdb; ipdb.set_trace()
 
 		flattened_predictions = []
 		flattened_gt = []
@@ -114,12 +126,18 @@ class VanillaNPLearner:
 		accuracy = accuracy_score(flattened_gt, flattened_predictions)
 
 		# for testing
+		print("\n")
+		print("Accuracy \n-----------------")
 		print(accuracy)
+
 		# calculate confusion matrix
+		cm = confusion_matrix(flattened_gt, flattened_predictions)
 
+		print("\n")
+		print("Confusion Matrix \n------------------")
+		print(cm)
 
-
-		
+		return accuracy, cm
 
 class NPLearner:
 	def __init__(self):

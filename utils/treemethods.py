@@ -14,8 +14,8 @@ def clean(s):
 						"*LRB*":"(",
 						"*RRB*":")"}
 
-	while len(s)>0 and s[0] == "(":
-		s = s[1:]
+	# while len(s)>0 and s[0] == "(":
+	# 	s = s[1:]
 
 	while len(s)>0 and s[-1] == ")":
 		s = s[:-1]
@@ -38,6 +38,7 @@ def tree2labels(tree, label="NP", labeling_type="IOB", rules={"O": 0, "B-NP": 1,
 		NPlabels (tuple): NP labels, according to the label type
 	"""
 	base_str = tree2str(tree)
+	# import ipdb; ipdb.set_trace()
 
 	# splitting
 	str_elements = base_str.split()
@@ -47,20 +48,22 @@ def tree2labels(tree, label="NP", labeling_type="IOB", rules={"O": 0, "B-NP": 1,
 	first = False
 
 	for element in str_elements:
-		
+
 		if np:
 			# set either I-NP or B-NP if stack number not = 0
 
 			# if begins with a (, then increment nesting level
-			if element[0] == "(":
+			if element[0] == "(" and element != "(/(":
 				## increment nesting level
 				stack += 1
 			else:
 			# elif element[0] != "*" and element != "0":
 				if first:
 					## add B-NP
-
-					encoding.append((clean(element), rules["B-NP"]))
+					if labeling_type == "IOB":
+						encoding.append((clean(element), rules["B-NP"]))
+					else:
+						encoding.append((clean(element), rules["I-NP"]))
 					first = False
 				else:
 					## add I-NP
@@ -85,7 +88,7 @@ def tree2labels(tree, label="NP", labeling_type="IOB", rules={"O": 0, "B-NP": 1,
 			first = True
 
 		# if element is not an irrelevan tag
-		elif element[0] != "(":
+		elif element[0] != "(" or element == "(/(":
 		# elif element[0] != "(" and element[0]!= "*" and element != "0":
 			encoding.append((clean(element), rules["O"]))
 
