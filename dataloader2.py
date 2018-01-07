@@ -1,8 +1,7 @@
 import numpy as np
 import pickle
 import os
-
-
+from utils import treemethods
 
 # TODO: for readRaw and readParsed, also return the name of the file from where
 # the data was read.
@@ -100,14 +99,32 @@ class PennTreeLoader:
 			gram_role (bool, optional): True if you'd like the computer to 
 				discriminate between different kinds of grammatical roles (e.g. 
 				NP-SBJ and NP-PRD would be different.) False otherwise.
+
 			return_tree (bool, optional): True if you'd like the program to
 				return a list of trees rather than a numpy array.
+
 		Returns: 
 			If not return_tree:
 				parsed_labels (np.array): each element corresponding to the 
 					same index in the np.array from readRaw(), each element 
 					containing the numerical labeling of different classes.
+
 		"""
+
+		def clean(s):
+
+			while len(s)>0 and s[0] == "(":
+				s = s[1:]
+
+			while len(s)>0 and s[-1] == ")":
+				s = s[:-1]
+
+			if s in self.PITAexceptions:
+				s = self.PITAexceptions[s]
+
+			return s
+
+
 
 		if not self.verifiable:
 			self.readPOS()
@@ -151,7 +168,10 @@ class PennTreeLoader:
 
 							if stack == 0 and len(string) > 0:
 								## process the block
-								temp.extend(self.process(string))
+								# temp.extend(self.process(string))
+
+								temp.extend(treemethods.str2labels(string, cleaner=clean))
+
 								## reset string
 								string = ""
 
@@ -159,22 +179,38 @@ class PennTreeLoader:
 
 					finalized = []
 					counter = 0
+					issue = False
 
 					for idx,element in enumerate(temp):
 
-						if element[0] == self.tagged[file_num][counter][0] \
+						this_word = element[0]
+						tagged_word = self.tagged[file_num][counter][0]
+
+						if this_word == tagged_word \
 							or (counter+1 < len(self.tagged[file_num]) and \
 								temp[idx+1][0] == self.tagged[file_num][counter+1][0]):
 							
 							# add to finalized.
-							finalized.append(element)
+							if this_word == tagged_word:
+
+								if issue and self.verbose:
+									print("***************** ISSUE FIXED *****************")
+									issue = False
+
+								finalized.append(element)
+							else:
+								finalized.append((tagged_word,element[1]))
 							counter += 1
 						else:
 							if self.verbose:
-								print("'{}' not equal to '{}' in POS. skipping".format(element[0], self.tagged[file_num][counter][0]))
+								if issue:
+									print("*************** ISSUE UNRESOLVED **************")
+								print("'{}' not equal to '{}' in POS.".format(this_word, tagged_word))
 
-							if counter+1 <len(self.tagged[file_num]) and self.verbose:
-								print("'{}' not equal to '{}' in POS, in the next position.".format(temp[idx+1][0], self.tagged[file_num][counter+1][0]))
+								if counter+1 <len(self.tagged[file_num]):
+									print("'{}' not equal to '{}' in POS, in the next position.".format(temp[idx+1][0], self.tagged[file_num][counter+1][0]))
+									issue = True
+
 
 					## VERY questionable approach, but should be very rare.
 					if counter < len(self.tagged[file_num]):
@@ -266,82 +302,6 @@ class PennTreeLoader:
 
 			return pos_tags
 
-	def process(self, string, target="NP", gram_role=False):
-		"""
-		*** NOTE ***
-		This labels all punctuations as well. Words are labeled in whole, and
-		not by character.
-		Inputs:
-			string (str): input string.
-		Returns:
-			labels (tuple): label for every word in the string.
-		"""
-
-		def clean(s):
-
-			while len(s)>0 and s[0] == "(":
-				s = s[1:]
-
-			while len(s)>0 and s[-1] == ")":
-				s = s[:-1]
-
-			if s in self.PITAexceptions:
-				s = self.PITAexceptions[s]
-
-			return s
-
-		encoding = []
-		np = False
-		first = False
-
-		for element in string.split():
-
-			# for every element
-			if np:
-				# set either I-NP or B-NP if stack number not = 0
-
-				# if begins with a (, then increment nesting level
-				if element[0] == "(":
-					## increment nesting level
-					stack += 1
-				else:
-				# elif element[0] != "*" and element != "0":
-					if first:
-						## add B-NP
-
-						encoding.append((clean(element), self.label_rules("B-NP")))
-						first = False
-					else:
-						## add I-NP
-
-						encoding.append((clean(element), self.label_rules("I-NP")))
-
-					while len(element) > 0 and element[-1] == ")": # in case of multiple )'s
-						element = element[:-1]
-						## decrement nesting level
-						stack -= 1 
-						stack = max(stack, 0)
-
-				# if ends with a ), then 1) add, 2) decrement nesting level
-
-				if stack == 0:
-					np = False
-	
-			elif element[:len(target)+1] == "("+target:
-				## if the tag is seen
-				np = True
-				stack = 1
-				first = True
-
-			# if element is not an irrelevan tag
-			elif element[0] != "(":
-			# elif element[0] != "(" and element[0]!= "*" and element != "0":
-				encoding.append((clean(element), self.label_rules("O")))
-
-		labels = tuple(encoding)
-
-		return labels
-
 	def label_rules(self, label, rules={"O": 0, "B-NP": 1, "I-NP": 2}):
 		"""
 		Inputs:
@@ -358,6 +318,7 @@ class PennTreeLoader:
 	def doubleCheck(self):
 		"""
 		Double checks that the same symbols were read.
+
 		"""
 
 		fine = True 
@@ -414,7 +375,7 @@ def main():
 
 	pennloader.doubleCheck()
 
-	import ipdb; ipdb.set_trace()
-
 if __name__ == "__main__":
 	main()
+
+
