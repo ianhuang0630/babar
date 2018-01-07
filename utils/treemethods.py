@@ -39,6 +39,20 @@ def tree2labels(tree, label="NP", labeling_type="IOB", rules={"O": 0, "B-NP": 1,
 	"""
 	base_str = tree2str(tree)
 	# import ipdb; ipdb.set_trace()
+	return str2labels(base_str, label=label, labeling_type=labeling_type, rules=rules)
+
+def str2labels(base_str, cleaner=clean, label = "NP", labeling_type="IOB", rules={"O": 0, "B-NP": 1, "I-NP": 2}):
+	"""
+		*** NOTE ***
+		This labels all punctuations as well. Words are labeled in whole, and
+		not by character.
+
+		Inputs:
+			base_str (str): str form of a NLTK tree.
+
+		Returns:
+			labels (tuple): label for every word in the string.
+	"""
 
 	# splitting
 	str_elements = base_str.split()
@@ -61,14 +75,14 @@ def tree2labels(tree, label="NP", labeling_type="IOB", rules={"O": 0, "B-NP": 1,
 				if first:
 					## add B-NP
 					if labeling_type == "IOB":
-						encoding.append((clean(element), rules["B-NP"]))
+						encoding.append((cleaner(element), rules["B-NP"]))
 					else:
-						encoding.append((clean(element), rules["I-NP"]))
+						encoding.append((cleaner(element), rules["I-NP"]))
 					first = False
 				else:
 					## add I-NP
 
-					encoding.append((clean(element), rules["I-NP"]))
+					encoding.append((cleaner(element), rules["I-NP"]))
 
 				while len(element) > 0 and element[-1] == ")": # in case of multiple )'s
 					element = element[:-1]
@@ -90,7 +104,7 @@ def tree2labels(tree, label="NP", labeling_type="IOB", rules={"O": 0, "B-NP": 1,
 		# if element is not an irrelevan tag
 		elif element[0] != "(" or element == "(/(":
 		# elif element[0] != "(" and element[0]!= "*" and element != "0":
-			encoding.append((clean(element), rules["O"]))
+			encoding.append((cleaner(element), rules["O"]))
 
 	labels = tuple(encoding)
 
