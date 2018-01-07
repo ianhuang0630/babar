@@ -12,11 +12,13 @@ PennTreeLoader is the data loader for the PennTreeBank data.
 """
 class PennTreeLoader:
 
-	def __init__(self, path, NP_tagging_type="IOB", verbose=False):
+	def __init__(self, path, label_map, NP_tagging_type="IOB", verbose=False):
 		"""
 		Input:
 			path (String): path to the Penn Tree bank directory
 		"""
+		self.labeling_type = NP_tagging_type
+		self.label_map = label_map
 
 		self.verbose = verbose
 
@@ -170,7 +172,7 @@ class PennTreeLoader:
 								## process the block
 								# temp.extend(self.process(string))
 
-								temp.extend(treemethods.str2labels(string, cleaner=clean))
+								temp.extend(treemethods.str2labels(string, cleaner=clean, label=target, labeling_type=self.labeling_type, rules=self.label_map))
 
 								## reset string
 								string = ""

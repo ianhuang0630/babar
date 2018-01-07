@@ -11,26 +11,29 @@ from utils import treemethods
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, confusion_matrix
 
-from dataloader import PennTreeLoader
+from dataloader2 import PennTreeLoader
 
 PTB = "treebank/"
 
-LABEL_MAP = {"O": 0, "B-NP": 1, "I-NP": 2}
+IOB_LABEL_MAP = {"O": 0, "B-NP": 1, "I-NP": 2}
+IO_LABEL_MAP = {"O": 0, "I-NP": 1}
 
 class VanillaNPLearner:
 	"""
 	A vanilla version of NP learner. Purely using the ntlk packages
 	""" 
 
-	def __init__(self, data, NP_tagging_type="IOB"):
+	def __init__(self, data, label_map = IOB_LABEL_MAP, NP_tagging_type="IOB"):
 		"""
 		Inputs:
 			data (np.array): 
 			NP_tagging_type (string):
 		"""
+		self.labeling_type = NP_tagging_type
+		self.label_map = label_map
 
 		# Assuming data is penntreebank
-		ptl = PennTreeLoader(data, NP_tagging_type=NP_tagging_type)
+		ptl = PennTreeLoader(data, label_map=self.label_map, NP_tagging_type=self.labeling_type)
 
 		## splitting dataset into training and testing
 		
@@ -47,6 +50,7 @@ class VanillaNPLearner:
 		for idx in range(self.parsed_test.size):
 			assert len(self.parsed_test[idx]) == len(self.pos_test[idx]), "failed at index = {}".format(idx)
 
+		
 		self.predictions = None
 
 		self.grammar = """
@@ -76,11 +80,8 @@ class VanillaNPLearner:
 			sentence = list(test_tuple)
 			parsed_sentence = cp.parse(sentence) # predicting purely based on POS labeling
 
-			## TODO: parse result into a list of tuples. This may be in a weird tree structure.
-			# Might have to use a recursive structure, or an inbuilt method in the Tree class
-
-			result = treemethods.tree2labels(parsed_sentence, labeling_type="IOB", rules=LABEL_MAP)
-			## strip the result tuple of the words in each tuple element (i.e. ())
+			result = treemethods.tree2labels(parsed_sentence, labeling_type=self.labeling_type, rules=self.label_map)
+			## strip the result tuple of the words in each tuple element
 
 			# ################# For Debugging ############################
 			# for i in range(min(len(result), len(self.parsed_test[idx]))):
@@ -93,8 +94,6 @@ class VanillaNPLearner:
 			# 		raise ValueError
 
 			# ############################################################
-
-
 
 			result = tuple([label for (_, label) in result])
 			assert len(result) == len(self.parsed_test[idx]), "idx = {}".format(idx)
@@ -152,12 +151,22 @@ class NPLearner:
 	def predict(self):
 		pass
 
+	def evaluate(self):
+		pass
+
 
 def main():
+
+	print("IOB labeling for NP using hard-coded rules...")
 	vnpl = VanillaNPLearner(PTB)
 	vnpl.predict()
 	vnpl.evaluate()
-
+		
+	print("\n")
+	print("IO labeling for NP using hard-coded rules...")
+	io_vnpl = VanillaNPLearner(PTB, NP_tagging_type = "IO")
+	io_vnpl.predict()
+	io_vnpl.evaluate()
 if __name__ == "__main__":
 	main()
 
