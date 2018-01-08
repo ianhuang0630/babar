@@ -3,6 +3,7 @@
 #########################################################################
 
 import nltk
+from nltk.classify import MaxentClassifier, ConditionalExponentialClassifier,DecisionTreeClassifier, NaiveBayesClassifier, WekaClassifier
 import numpy as np
 import pandas as pd
 
@@ -17,6 +18,13 @@ PTB = "treebank/"
 
 IOB_LABEL_MAP = {"O": 0, "B-NP": 1, "I-NP": 2}
 IO_LABEL_MAP = {"O": 0, "I-NP": 1}
+CLASSIFIER_MAP = {
+	"Maxent": MaxentClassifier, 
+	"ConditionalExp": ConditionalExponentialClassifier,
+	"DecisionTree": DecisionTreeClassifier,
+	"NaiveBayes": NaiveBayesClassifier,
+	"Weka": WekaClassifier
+	}
 
 class VanillaNPLearner:
 	"""
@@ -139,13 +147,43 @@ class VanillaNPLearner:
 		return accuracy, cm
 
 class NPLearner:
-	def __init__(self):
-		pass
+	def __init__(self, data, label_map = IOB_LABEL_MAP, NP_tagging_type="IOB", classifier = "Maxent"):
+		"""
+		Inputs:
+			data (np.array): 
+			NP_tagging_type (string):
+		"""
+		self.labeling_type = NP_tagging_type
+		self.label_map = label_map
+		self.classifier = CLASSIFIER_MAP[classifier]
+
+		# Assuming data is penntreebank
+		ptl = PennTreeLoader(data, label_map=self.label_map, NP_tagging_type=self.labeling_type)
+
+		## splitting dataset into training and testing
+		
+		self.all_parsed = ptl.readParsed()
+		self.all_pos = ptl.readPOS()
+
+		#checking sanity of the data
+		ptl.doubleCheck()
+
+		self.parsed_train, self.parsed_test, self.pos_train, self.pos_test \
+			= train_test_split(self.all_parsed, self.all_pos, test_size=0.2)
+
+
+		for idx in range(self.parsed_test.size):
+			assert len(self.parsed_test[idx]) == len(self.pos_test[idx]), "failed at index = {}".format(idx)
+
+		self.predictions = None
+
 
 	def fit(self):
+
 		pass
 
 	def get_features(self):
+		
 		pass
 
 	def predict(self):
