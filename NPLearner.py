@@ -3,7 +3,14 @@
 #########################################################################
 
 import nltk
-from nltk.classify import MaxentClassifier, ConditionalExponentialClassifier,DecisionTreeClassifier, NaiveBayesClassifier, WekaClassifier
+
+	
+from nltk.classify import SklearnClassifier
+from nltk.classify import MaxentClassifier, \
+						ConditionalExponentialClassifier,\
+						DecisionTreeClassifier, \
+						NaiveBayesClassifier, \
+						WekaClassifier
 import numpy as np
 import pandas as pd
 
@@ -18,13 +25,6 @@ PTB = "treebank/"
 
 IOB_LABEL_MAP = {"O": 0, "B-NP": 1, "I-NP": 2}
 IO_LABEL_MAP = {"O": 0, "I-NP": 1}
-CLASSIFIER_MAP = {
-	"Maxent": MaxentClassifier, 
-	"ConditionalExp": ConditionalExponentialClassifier,
-	"DecisionTree": DecisionTreeClassifier,
-	"NaiveBayes": NaiveBayesClassifier,
-	"Weka": WekaClassifier
-	}
 
 class VanillaNPLearner:
 	"""
@@ -32,21 +32,19 @@ class VanillaNPLearner:
 	""" 
 
 	def __init__(self, data, label_map = IOB_LABEL_MAP, NP_tagging_type="IOB"):
-		"""
-		Inputs:
-			data (np.array): 
-			NP_tagging_type (string):
-		"""
+		
 		self.labeling_type = NP_tagging_type
 		self.label_map = label_map
 
 		# Assuming data is penntreebank
-		ptl = PennTreeLoader(data, label_map=self.label_map, NP_tagging_type=self.labeling_type)
+		ptl = PennTreeLoader(data, label_map=self.label_map, 
+							NP_tagging_type=self.labeling_type)
 
 		## splitting dataset into training and testing
 		
 		self.all_parsed = ptl.readParsed()
 		self.all_pos = ptl.readPOS()
+		import ipdb; ipdb.set_trace()
 
 		#checking sanity of the data
 		ptl.doubleCheck()
@@ -56,7 +54,8 @@ class VanillaNPLearner:
 
 
 		for idx in range(self.parsed_test.size):
-			assert len(self.parsed_test[idx]) == len(self.pos_test[idx]), "failed at index = {}".format(idx)
+			assert len(self.parsed_test[idx]) == len(self.pos_test[idx]), \
+				"failed at index = {}".format(idx)
 
 		
 		self.predictions = None
@@ -86,9 +85,11 @@ class VanillaNPLearner:
 		for (idx, test_tuple) in enumerate(self.pos_test):
 
 			sentence = list(test_tuple)
-			parsed_sentence = cp.parse(sentence) # predicting purely based on POS labeling
+			# predicting purely based on POS labeling
+			parsed_sentence = cp.parse(sentence) 
 
-			result = treemethods.tree2labels(parsed_sentence, labeling_type=self.labeling_type, rules=self.label_map)
+			result = treemethods.tree2labels(parsed_sentence,
+						labeling_type=self.labeling_type, rules=self.label_map)
 			## strip the result tuple of the words in each tuple element
 
 			# ################# For Debugging ############################
@@ -104,7 +105,9 @@ class VanillaNPLearner:
 			# ############################################################
 
 			result = tuple([label for (_, label) in result])
-			assert len(result) == len(self.parsed_test[idx]), "idx = {}".format(idx)
+
+			assert len(result) == len(self.parsed_test[idx]), \
+					"idx = {}".format(idx)
 			
 			lis.append(result)
 
@@ -147,63 +150,215 @@ class VanillaNPLearner:
 		return accuracy, cm
 
 class NPLearner:
-	def __init__(self, data, label_map = IOB_LABEL_MAP, NP_tagging_type="IOB", classifier = "Maxent"):
+	def __init__(self, data_path, model_type, feat_func,
+				label_map = IOB_LABEL_MAP, NP_tagging_type="IOB", 
+				verbose=False, max_iter=100):
+		
 		"""
-		Inputs:
-			data (np.array): 
-			NP_tagging_type (string):
+		For experimenting with different models and feature functions
+		Input:
+			data_path (str): path to the penntreebank
+			model (Model): input model
+			feat_func (func): feature function
+			label_map (dict, optional): mapping from NP labeling to the integer
+				labels. (e.g. {"I-NP": 1, "O":0})
+			NP_tagging_type (str, optional): Either "IOB" or "IO"
 		"""
+
+		
+		# model and feature functions being tested.
+		self.model_type = model_type
+		self.model = None
+		self.max_iter = max_iter
+		self.feat_func = feat_func
+
 		self.labeling_type = NP_tagging_type
 		self.label_map = label_map
+		self.verbose = verbose
 
-		self.classifier = CLASSIFIER_MAP[classifier]
-
-		# Assuming data is penntreebank
-		ptl = PennTreeLoader(data, label_map=self.label_map, NP_tagging_type=self.labeling_type)
-
-		## splitting dataset into training and testing
-		
+		## Assuming data is penntreebank
+		ptl = PennTreeLoader(data_path, label_map=self.label_map, \
+							NP_tagging_type=self.labeling_type)
 		self.all_parsed = ptl.readParsed()
 		self.all_pos = ptl.readPOS()
 
-		#checking sanity of the data
+		## checking sanity of the data
 		ptl.doubleCheck()
 
-		self.parsed_train, self.parsed_test, self.pos_train, self.pos_test \
-			= train_test_split(self.all_parsed, self.all_pos, test_size=0.2)
+
+		## calculating features
+		X = self.feat_func(self.all_pos)
+		y = [label for sent in self.all_parsed for (_, label) in sent]
+		import ipdb; ipdb.set_trace()
 
 
-		for idx in range(self.parsed_test.size):
-			assert len(self.parsed_test[idx]) == len(self.pos_test[idx]), "failed at index = {}".format(idx)
+		self.X_train, self.X_test, self.y_train, self.y_test = \
+			train_test_split(X,y, test_size=0.2)
 
 		self.predictions = None
 
-
 	def fit(self):
-		pass
+		"""
+		Fit to the dataset
+		"""
+		## extract features
+		X = self.X_train
+		y = self.y_train
 
-	def get_features(self):
-		pass
+		train_data = list(zip(X,y)) # in Python 3.6, the list() cast is necessary
+
+		## train_data is of of the format:
+			#[({"a": 4, "b": 1, "c": 0}, "ham"),
+			# ({"a": 5, "b": 2, "c": 1}, "ham"),
+			# ({"a": 0, "b": 3, "c": 4}, "spam"),
+			# ({"a": 5, "b": 1, "c": 1}, "ham"),
+			# ({"a": 1, "b": 4, "c": 3}, "spam")]
+
+		self.model = self.model_type.train(train_data, max_iter=self.max_iter)
 
 	def predict(self):
-		pass
+		"""
+		Predict based on test set
+		"""
+
+		X = self.X_test
+		self.predictions = self.model.classify_many(X)
 
 	def evaluate(self):
-		pass
+		"""
+		Evaluating comparison between self.y_train and self.predictions
+		"""	
+
+		ac = accuracy_score(self.y_train, self.predictions)
+		cm = confusion_matrix(self.y_train, self.predictions)
+
+		# TODO: calculate F1 score if self.labeling_type == "IO"
+
+		if self.verbose:
+			# Display accuracy score
+			print("\n")
+			print("Accuracy \n-----------------")
+			print(ac)
+
+			# Display confusion matrix
+			print("\n")
+			print("Confusion Matrix \n------------------")
+			print(cm)
+
+		return ac, cm
+
+	def getModel(self):
+		return self.model 
+
+
+"""
+Wrapper class for the classifier -- unused currently. May be more useful
+when we are building Neural Networks to do similar jobs
+"""
+class Model:
+	def __init__(self, model):
+		self.model = model
+
+	def fit(self, train_data):
+		self.model.train(train_data)
+
+	def predict(self, test_data):
+		return self.model.classify_many(test_data)
+
+"""
+template feature function
+"""
+def default_feature_func(sents):
+	"""
+	Input:
+		sents (np.array): Each row is a tuple with the correct POS labeling
+	
+	Output:
+		feats (list): each element is a dictionary. Dictionaries contain the
+			name of the feature as the values and the values of the features
+			as dictionary values. 
+			e.g.[{"a": 3, "b": 2, "c": 1},
+				 {"a": 0, "b": 3, "c": 7}]
+	"""
+	feats = []
+
+	for tagged_sent in sents:
+		history = []
+		for i, (word, tag) in enumerate(tagged_sent):
+			featureset = npchunk_features(tagged_sent, i, history)
+			feats.append(featureset)
+			history.append(tag)
+
+	return feats
+
+
+
+"""
+Copied from 3.3 in book
+"""
+def npchunk_features(sentence, i, history):
+    '''
+    Extracting various features to improve chunker performance
+    '''
+    word, pos = sentence[i]
+    if i == 0:
+         prevword, prevpos = "<START>", "<START>"
+    else:
+         prevword, prevpos = sentence[i-1]
+    if i == len(sentence)-1:
+         nextword, nextpos = "<END>", "<END>"
+    else:
+         nextword, nextpos = sentence[i+1]
+    return {"pos": pos,
+            "word": word,
+            "prevpos": prevpos,
+            "nextpos": nextpos,
+            "prevpos+pos": "%s+%s" % (prevpos, pos), 
+            "pos+nextpos": "%s+%s" % (pos, nextpos),
+            "tags-since-dt": tags_since_dt(sentence, i)} 
+"""
+Copied from 3.3 in book
+"""
+def tags_since_dt(sentence, i):
+    '''
+    Output:
+        String that describes the set of all part-of-speech tags encountered since beginning of sentence OR most recent determiner 'DT'
+    '''
+    tags = set()
+    for word, pos in sentence[:i]:
+        if pos == 'DT':
+            tags = set()
+        else:
+            tags.add(pos)
+    return '+'.join(sorted(tags))
 
 
 def main():
 
-	print("IOB labeling for NP using hard-coded rules...")
-	vnpl = VanillaNPLearner(PTB)
-	vnpl.predict()
-	vnpl.evaluate()
+	# print("IOB labeling for NP using hard-coded rules...")
+	# vnpl = VanillaNPLearner(PTB)
+	# vnpl.predict()
+	# vnpl.evaluate()
 		
-	print("\n")
-	print("IO labeling for NP using hard-coded rules...")
-	io_vnpl = VanillaNPLearner(PTB, NP_tagging_type = "IO")
-	io_vnpl.predict()
-	io_vnpl.evaluate()
+	# print("\n")
+	# print("IO labeling for NP using hard-coded rules...")
+	# io_vnpl = VanillaNPLearner(PTB, NP_tagging_type = "IO")
+	# io_vnpl.predict()
+	# io_vnpl.evaluate()
+
+	mec = MaxentClassifier
+
+	## setting max_iter to be 10 so that we have a proof of concept.
+	npl = NPLearner(PTB, mec, default_feature_func, verbose=True, max_iter=100)
+
+	npl.fit()
+	npl.predict()
+	accuracy, confusion_matrix = npl.evaluate()
+
+
+	# TODO: run on all other NLTK classifiers and some scikitlearn classifiers
+	# (using SklearnClassifier)
+
+
 if __name__ == "__main__":
 	main()
-
