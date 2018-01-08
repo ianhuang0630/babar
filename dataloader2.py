@@ -10,9 +10,11 @@ from utils import treemethods
 """
 PennTreeLoader is the data loader for the PennTreeBank data.
 """
+DEFAULT_LABEL_MAP = {"O": 0, "B-NP": 1, "I-NP": 2}
+
 class PennTreeLoader:
 
-	def __init__(self, path, label_map, NP_tagging_type="IOB", verbose=False):
+	def __init__(self, path, label_map, in_sentences=True, NP_tagging_type="IOB", verbose=False):
 		"""
 		Input:
 			path (String): path to the Penn Tree bank directory
@@ -24,7 +26,8 @@ class PennTreeLoader:
 
 		self.path = path
 
-		
+		self.inSentences = in_sentences
+
 		self.raw_path = os.path.join(self.path, "raw")
 		self.parsed_path = os.path.join(self.path, "parsed")
 		self.tagged_path = os.path.join(self.path, "tagged")
@@ -36,9 +39,16 @@ class PennTreeLoader:
 			self.IO = True
 			self.IOB = False
 
+		# parsing files in full
 		self.raw = None
 		self.parsed = None
 		self.tagged = None
+
+		# sentences
+		self.raw_sents = None
+		self.parsed_sents = None
+		self.tagged_sents = None
+
 		# field used in readParsed()
 		self.verifiable = False
 
@@ -84,14 +94,19 @@ class PennTreeLoader:
 
 									line = line[:i] + " " + line[i:]
 
-							this_file.append(tuple(line.split()))
+							this_file.extend(line.split())
 
-				all_files.append(this_file)
+				all_files.append(tuple(this_file))
 
 		raw_processed = np.array(all_files)
+
 		self.raw = raw_processed
 
-		return raw_processed
+		if self.inSentences:
+			self.raw_sents = self.split2sents(raw_processed)
+			return self.raw_sents
+		else:
+			return self.raw
 
 	def readParsed(self, target="NP", gram_role=False, return_tree=False):
 		"""
@@ -234,12 +249,17 @@ class PennTreeLoader:
 		over_all_files = [tuple(ls) for ls in over_all_files]
 
 		parsed_labels = np.array(over_all_files)
+
 		self.parsed = parsed_labels
 
 		# TODO: an assert statement to verify that every length of every tuple
 		# in self.parsed is the same length as a tuple in self.raw.
 
-		return parsed_labels
+		if self.inSentences:
+			self.parsed_sents = self.split2sents(parsed_labels)
+			return self.parsed_sents
+		else:
+			return self.parsed
 
 	def readPOS(self):
 		"""
@@ -250,7 +270,10 @@ class PennTreeLoader:
 
 
 		if self.verifiable:
-			return self.tagged
+			if self.inSentences:
+				return self.tagged_sents
+			else:
+				return self.tagged
 
 		else:
 			all_files = []
@@ -302,7 +325,49 @@ class PennTreeLoader:
 			self.tagged = pos_tags
 			self.verifiable = True
 
+			if self.inSentences:
+				self.tagged_sents = self.split2sents(pos_tags)
+				return self.tagged_sents
+			else:
+				return self.tagged
+
 			return pos_tags
+
+
+	def split2sents(self, file_stack):
+		"""
+		In charge of splitting tuples of words in a whole document into
+		multiple tuples, where each tuple is a sentence. 
+		"""
+
+		all_sentences = []
+
+		for file in file_stack:
+
+			a_sent = [] # a buffer for sentences
+
+			for tup in file:
+				if type(tup) != tuple:
+					# then we're dealing with a string for self.raw
+					
+					if tup == ".":
+						a_sent.append(tup)
+						all_sentences.append(tuple(a_sent))
+						a_sent = []
+					else:
+						a_sent.append(tup)
+
+				else:
+					# we're dealing with a label in self.parsed or self.POS
+					if tup[0] == ".":
+						a_sent.append(tup)
+						all_sentences.append(tuple(a_sent))
+						a_sent = []
+					else:
+						a_sent.append(tup)
+
+		return np.array(all_sentences)
+		
 
 	def label_rules(self, label, rules={"O": 0, "B-NP": 1, "I-NP": 2}):
 		"""
@@ -363,17 +428,18 @@ class PennTreeLoader:
 
 def main():
 
-	pennloader = PennTreeLoader("/Users/ian.huang/Documents/Projects/babar/treebank/", verbose=True)
+	pennloader = PennTreeLoader("/Users/ian.huang/Documents/Projects/babar/treebank/", DEFAULT_LABEL_MAP, in_sentences=True, verbose=True)
 	
 
-	pennloader.readRaw()
-	pennloader.readParsed()
-	pennloader.readPOS()
+	raw = pennloader.readRaw()
+	parsed = pennloader.readParsed()
+	pos = pennloader.readPOS()
 
-	print("Length of list for rawdata: {}".format(pennloader.raw.size))
-	print("Length of list for parseddata: {}".format(pennloader.parsed.size))
-	print("length of list for POSdata: {}".format(pennloader.tagged.size))
+	print("Length of list for rawdata: {}".format(raw.size))
+	print("Length of list for parseddata: {}".format(parsed.size))
+	print("length of list for POSdata: {}".format(pos.size))
 
+	import ipdb; ipdb.set_trace()
 
 	pennloader.doubleCheck()
 
