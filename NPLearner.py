@@ -155,6 +155,7 @@ class NPLearner:
 		"""
 		self.labeling_type = NP_tagging_type
 		self.label_map = label_map
+
 		self.classifier = CLASSIFIER_MAP[classifier]
 
 		# Assuming data is penntreebank
@@ -179,11 +180,9 @@ class NPLearner:
 
 
 	def fit(self):
-
 		pass
 
 	def get_features(self):
-		
 		pass
 
 	def predict(self):
