@@ -3,7 +3,14 @@
 #########################################################################
 
 import nltk
-from nltk.classify import MaxentClassifier, ConditionalExponentialClassifier,DecisionTreeClassifier, NaiveBayesClassifier, WekaClassifier
+
+	
+from nltk.classify import SklearnClassifier
+from nltk.classify import MaxentClassifier, \
+						ConditionalExponentialClassifier,\
+						DecisionTreeClassifier, \
+						NaiveBayesClassifier, \
+						WekaClassifier
 import numpy as np
 import pandas as pd
 
@@ -18,13 +25,6 @@ PTB = "treebank/"
 
 IOB_LABEL_MAP = {"O": 0, "B-NP": 1, "I-NP": 2}
 IO_LABEL_MAP = {"O": 0, "I-NP": 1}
-CLASSIFIER_MAP = {
-	"Maxent": MaxentClassifier, 
-	"ConditionalExp": ConditionalExponentialClassifier,
-	"DecisionTree": DecisionTreeClassifier,
-	"NaiveBayes": NaiveBayesClassifier,
-	"Weka": WekaClassifier
-	}
 
 class VanillaNPLearner:
 	"""
@@ -32,16 +32,13 @@ class VanillaNPLearner:
 	""" 
 
 	def __init__(self, data, label_map = IOB_LABEL_MAP, NP_tagging_type="IOB"):
-		"""
-		Inputs:
-			data (np.array): 
-			NP_tagging_type (string):
-		"""
+		
 		self.labeling_type = NP_tagging_type
 		self.label_map = label_map
 
 		# Assuming data is penntreebank
-		ptl = PennTreeLoader(data, label_map=self.label_map, NP_tagging_type=self.labeling_type)
+		ptl = PennTreeLoader(data, label_map=self.label_map, 
+							NP_tagging_type=self.labeling_type)
 
 		## splitting dataset into training and testing
 		
@@ -57,7 +54,8 @@ class VanillaNPLearner:
 
 
 		for idx in range(self.parsed_test.size):
-			assert len(self.parsed_test[idx]) == len(self.pos_test[idx]), "failed at index = {}".format(idx)
+			assert len(self.parsed_test[idx]) == len(self.pos_test[idx]), \
+				"failed at index = {}".format(idx)
 
 		
 		self.predictions = None
@@ -87,9 +85,11 @@ class VanillaNPLearner:
 		for (idx, test_tuple) in enumerate(self.pos_test):
 
 			sentence = list(test_tuple)
-			parsed_sentence = cp.parse(sentence) # predicting purely based on POS labeling
+			# predicting purely based on POS labeling
+			parsed_sentence = cp.parse(sentence) 
 
-			result = treemethods.tree2labels(parsed_sentence, labeling_type=self.labeling_type, rules=self.label_map)
+			result = treemethods.tree2labels(parsed_sentence, l
+						abeling_type=self.labeling_type, rules=self.label_map)
 			## strip the result tuple of the words in each tuple element
 
 			# ################# For Debugging ############################
@@ -105,7 +105,9 @@ class VanillaNPLearner:
 			# ############################################################
 
 			result = tuple([label for (_, label) in result])
-			assert len(result) == len(self.parsed_test[idx]), "idx = {}".format(idx)
+
+			assert len(result) == len(self.parsed_test[idx]), \
+					"idx = {}".format(idx)
 			
 			lis.append(result)
 
@@ -148,50 +150,132 @@ class VanillaNPLearner:
 		return accuracy, cm
 
 class NPLearner:
-	def __init__(self, data, label_map = IOB_LABEL_MAP, NP_tagging_type="IOB", classifier = "Maxent"):
+	def __init__(self, data_path, model, feat_func,
+				label_map = IOB_LABEL_MAP, NP_tagging_type="IOB", verbose=False):
+		
 		"""
-		Inputs:
-			data (np.array): 
-			NP_tagging_type (string):
+		For experimenting with different models and feature functions
+
+		Input:
+			data_path (str): path to the penntreebank
+			model (Model): input model
+			feat_func (func): feature function
+			label_map (dict, optional): mapping from NP labeling to the integer
+				labels. (e.g. {"I-NP": 1, "O":0})
+			NP_tagging_type (str, optional): Either "IOB" or "IO"
+
 		"""
+		
+		# model and feature functions being tested.
+		self.model = model
+		self.feat_func = feat_func
+
 		self.labeling_type = NP_tagging_type
 		self.label_map = label_map
-		self.classifier = CLASSIFIER_MAP[classifier]
+		self.verbose = verbose
 
-		# Assuming data is penntreebank
-		ptl = PennTreeLoader(data, label_map=self.label_map, NP_tagging_type=self.labeling_type)
-
-		## splitting dataset into training and testing
-		
+		## Assuming data is penntreebank
+		ptl = PennTreeLoader(data_path, label_map=self.label_map, \
+							NP_tagging_type=self.labeling_type)
 		self.all_parsed = ptl.readParsed()
 		self.all_pos = ptl.readPOS()
 
-		#checking sanity of the data
+		## checking sanity of the data
 		ptl.doubleCheck()
 
-		self.parsed_train, self.parsed_test, self.pos_train, self.pos_test \
-			= train_test_split(self.all_parsed, self.all_pos, test_size=0.2)
 
+		## calculating features
+		X = self.feat_func(self.all_pos)
+		y = [label for (_, label) in sent for sent in self.parsed_train]
+		## 
 
-		for idx in range(self.parsed_test.size):
-			assert len(self.parsed_test[idx]) == len(self.pos_test[idx]), "failed at index = {}".format(idx)
+		self.X_train, self.X_test, self.y_train, self.y_test = \
+			train_test_split(X,y, test_size=0.2)
 
 		self.predictions = None
 
-
 	def fit(self):
+		"""
+		Fit to the dataset
+		"""
+		## extract features
+		X = self.X_train
+		y = self.y_train
 
+		train_data = list(zip(X,y)) # in Python 3.6, the list() cast is necessary
+
+		## train_data is of of the format:
+			#[({"a": 4, "b": 1, "c": 0}, "ham"),
+			# ({"a": 5, "b": 2, "c": 1}, "ham"),
+			# ({"a": 0, "b": 3, "c": 4}, "spam"),
+			# ({"a": 5, "b": 1, "c": 1}, "ham"),
+			# ({"a": 1, "b": 4, "c": 3}, "spam")]
+
+		self.model.fit(train_data)
+
+	def predict(self):
+		"""
+		Predict based on test set
+		"""
+
+		X = self.X_test
+		self.predictions = self.model.predict(test_data)
+
+	def evaluate(self):
+		"""
+		Evaluating comparison between self.y_train and self.predictions
+		"""	
+
+		ac = accuracy_score(self.y_train, self.predictions)
+		cm = confusion_matrix(self.y_train, self.predictions)
+
+		# TODO: calculate F1 score if self.labeling_type == "IO"
+
+		if self.verbose:
+
+			# Display accuracy score
+			print("\n")
+			print("Accuracy \n-----------------")
+			print(ac)
+
+			# Display confusion matrix
+			print("\n")
+			print("Confusion Matrix \n------------------")
+			print(cm)
+
+		return ac, cm
+
+	def getModel(self):
+		return self.model 
+
+
+class Model:
+	def __init__(self):
 		pass
 
-	def get_features(self):
-		
+	def fit(self):
 		pass
 
 	def predict(self):
 		pass
 
-	def evaluate(self):
-		pass
+
+def feature_func(sents):
+	"""
+	Input:
+		sents (np.array): Each row is a tuple with the correct POS labeling
+	
+	Output:
+		feats (list): each element is a dictionary. Dictionaries contain the
+			name of the feature as the values and the values of the features
+			as dictionary values. 
+
+			e.g.[{"a": 3, "b": 2, "c": 1},
+				 {"a": 0, "b": 3, "c": 7}]
+	"""
+
+	pass
+
 
 def main():
 
