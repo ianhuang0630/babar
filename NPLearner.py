@@ -88,8 +88,8 @@ class VanillaNPLearner:
 			# predicting purely based on POS labeling
 			parsed_sentence = cp.parse(sentence) 
 
-			result = treemethods.tree2labels(parsed_sentence, l
-						abeling_type=self.labeling_type, rules=self.label_map)
+			result = treemethods.tree2labels(parsed_sentence,
+						labeling_type=self.labeling_type, rules=self.label_map)
 			## strip the result tuple of the words in each tuple element
 
 			# ################# For Debugging ############################
@@ -150,8 +150,9 @@ class VanillaNPLearner:
 		return accuracy, cm
 
 class NPLearner:
-	def __init__(self, data_path, model, feat_func,
-				label_map = IOB_LABEL_MAP, NP_tagging_type="IOB", verbose=False):
+	def __init__(self, data_path, model_type, feat_func,
+				label_map = IOB_LABEL_MAP, NP_tagging_type="IOB", 
+				verbose=False, max_iter=100):
 		
 		"""
 		For experimenting with different models and feature functions
@@ -165,9 +166,12 @@ class NPLearner:
 			NP_tagging_type (str, optional): Either "IOB" or "IO"
 
 		"""
+
 		
 		# model and feature functions being tested.
-		self.model = model
+		self.model_type = model_type
+		self.model = None
+		self.max_iter = max_iter
 		self.feat_func = feat_func
 
 		self.labeling_type = NP_tagging_type
@@ -186,8 +190,9 @@ class NPLearner:
 
 		## calculating features
 		X = self.feat_func(self.all_pos)
-		y = [label for (_, label) in sent for sent in self.parsed_train]
-		## 
+		y = [label for sent in self.all_parsed for (_, label) in sent]
+		import ipdb; ipdb.set_trace()
+
 
 		self.X_train, self.X_test, self.y_train, self.y_test = \
 			train_test_split(X,y, test_size=0.2)
@@ -211,7 +216,7 @@ class NPLearner:
 			# ({"a": 5, "b": 1, "c": 1}, "ham"),
 			# ({"a": 1, "b": 4, "c": 3}, "spam")]
 
-		self.model.fit(train_data)
+		self.model = self.model_type.train(train_data, max_iter=self.max_iter)
 
 	def predict(self):
 		"""
@@ -219,7 +224,7 @@ class NPLearner:
 		"""
 
 		X = self.X_test
-		self.predictions = self.model.predict(test_data)
+		self.predictions = self.model.classify_many(X)
 
 	def evaluate(self):
 		"""
@@ -232,7 +237,6 @@ class NPLearner:
 		# TODO: calculate F1 score if self.labeling_type == "IO"
 
 		if self.verbose:
-
 			# Display accuracy score
 			print("\n")
 			print("Accuracy \n-----------------")
@@ -249,18 +253,24 @@ class NPLearner:
 		return self.model 
 
 
+"""
+Wrapper class for the classifier -- unused currently. May be more useful
+when we are building Neural Networks to do similar jobs
+"""
 class Model:
-	def __init__(self):
-		pass
+	def __init__(self, model):
+		self.model = model
 
-	def fit(self):
-		pass
+	def fit(self, train_data):
+		self.model.train(train_data)
 
-	def predict(self):
-		pass
+	def predict(self, test_data):
+		return self.model.classify_many(test_data)
 
-
-def feature_func(sents):
+"""
+template feature function
+"""
+def default_feature_func(sents):
 	"""
 	Input:
 		sents (np.array): Each row is a tuple with the correct POS labeling
@@ -273,22 +283,86 @@ def feature_func(sents):
 			e.g.[{"a": 3, "b": 2, "c": 1},
 				 {"a": 0, "b": 3, "c": 7}]
 	"""
+	feats = []
 
-	pass
+	for tagged_sent in sents:
+		history = []
+		for i, (word, tag) in enumerate(tagged_sent):
+			featureset = npchunk_features(tagged_sent, i, history)
+			feats.append(featureset)
+			history.append(tag)
+
+	return feats
+
+
+
+"""
+Copied from 3.3 in book
+"""
+def npchunk_features(sentence, i, history):
+    '''
+    Extracting various features to improve chunker performance
+    '''
+    word, pos = sentence[i]
+    if i == 0:
+         prevword, prevpos = "<START>", "<START>"
+    else:
+         prevword, prevpos = sentence[i-1]
+    if i == len(sentence)-1:
+         nextword, nextpos = "<END>", "<END>"
+    else:
+         nextword, nextpos = sentence[i+1]
+    return {"pos": pos,
+            "word": word,
+            "prevpos": prevpos,
+            "nextpos": nextpos,
+            "prevpos+pos": "%s+%s" % (prevpos, pos), 
+            "pos+nextpos": "%s+%s" % (pos, nextpos),
+            "tags-since-dt": tags_since_dt(sentence, i)} 
+"""
+Copied from 3.3 in book
+"""
+def tags_since_dt(sentence, i):
+    '''
+    Output:
+        String that describes the set of all part-of-speech tags encountered since beginning of sentence OR most recent determiner 'DT'
+    '''
+    tags = set()
+    for word, pos in sentence[:i]:
+        if pos == 'DT':
+            tags = set()
+        else:
+            tags.add(pos)
+    return '+'.join(sorted(tags))
 
 
 def main():
 
-	print("IOB labeling for NP using hard-coded rules...")
-	vnpl = VanillaNPLearner(PTB)
-	vnpl.predict()
-	vnpl.evaluate()
+	# print("IOB labeling for NP using hard-coded rules...")
+	# vnpl = VanillaNPLearner(PTB)
+	# vnpl.predict()
+	# vnpl.evaluate()
 		
-	print("\n")
-	print("IO labeling for NP using hard-coded rules...")
-	io_vnpl = VanillaNPLearner(PTB, NP_tagging_type = "IO")
-	io_vnpl.predict()
-	io_vnpl.evaluate()
+	# print("\n")
+	# print("IO labeling for NP using hard-coded rules...")
+	# io_vnpl = VanillaNPLearner(PTB, NP_tagging_type = "IO")
+	# io_vnpl.predict()
+	# io_vnpl.evaluate()
+
+	mec = MaxentClassifier
+
+	## setting max_iter to be 10 so that we have a proof of concept.
+	npl = NPLearner(PTB, mec, default_feature_func, verbose=True, max_iter=100)
+
+	npl.fit()
+	npl.predict()
+	accuracy, confusion_matrix = npl.evaluate()
+
+
+	# TODO: run on all other NLTK classifiers and some scikitlearn classifiers
+	# (using SklearnClassifier)
+
+
 if __name__ == "__main__":
 	main()
 
