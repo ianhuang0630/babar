@@ -47,6 +47,7 @@ class VanillaNPLearner:
 		
 		self.all_parsed = ptl.readParsed()
 		self.all_pos = ptl.readPOS()
+		import ipdb; ipdb.set_trace()
 
 		#checking sanity of the data
 		ptl.doubleCheck()
@@ -191,7 +192,6 @@ class NPLearner:
 
 	def evaluate(self):
 		pass
-
 
 def main():
 
