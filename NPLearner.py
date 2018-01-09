@@ -150,7 +150,7 @@ class VanillaNPLearner:
 		return accuracy, cm
 
 class NPLearner:
-	def __init__(self, data_path, model_type, feat_func,
+	def __init__(self, data_path, model_types, feat_func,
 				label_map = IOB_LABEL_MAP, NP_tagging_type="IOB", 
 				verbose=False, max_iter=100):
 		
@@ -158,7 +158,7 @@ class NPLearner:
 		For experimenting with different models and feature functions
 		Input:
 			data_path (str): path to the penntreebank
-			model (Model): input model
+			model_types (list): list of class pointers
 			feat_func (func): feature function
 			label_map (dict, optional): mapping from NP labeling to the integer
 				labels. (e.g. {"I-NP": 1, "O":0})
@@ -167,9 +167,16 @@ class NPLearner:
 
 		
 		# model and feature functions being tested.
-		self.model_type = model_type
-		self.model = None
-		self.max_iter = max_iter
+		self.model_types = model_types
+		self.num_models = len(self.model_types)
+
+		self.model = [None] * self.num_models
+	
+		if type(max_iter) == int:
+			self.max_iter = [max_iter] * self.num_models
+		else:
+			self.max_iter = max_iter
+
 		self.feat_func = feat_func
 
 		self.labeling_type = NP_tagging_type
@@ -189,13 +196,11 @@ class NPLearner:
 		## calculating features
 		X = self.feat_func(self.all_pos)
 		y = [label for sent in self.all_parsed for (_, label) in sent]
-		import ipdb; ipdb.set_trace()
-
 
 		self.X_train, self.X_test, self.y_train, self.y_test = \
 			train_test_split(X,y, test_size=0.2)
 
-		self.predictions = None
+		self.predictions = [None] * self.num_models
 
 	def fit(self):
 		"""
@@ -214,40 +219,50 @@ class NPLearner:
 			# ({"a": 5, "b": 1, "c": 1}, "ham"),
 			# ({"a": 1, "b": 4, "c": 3}, "spam")]
 
-		self.model = self.model_type.train(train_data, max_iter=self.max_iter)
+		for i, mod in enumerate(self.model_types):
+			self.model[i] = mod.train(train_data, max_iter=self.max_iter[i])
 
 	def predict(self):
 		"""
 		Predict based on test set
 		"""
-
 		X = self.X_test
-		self.predictions = self.model.classify_many(X)
+
+		for i,mod in enumerate(self.model):
+			self.predictions[i] = mod.classify_many(X)
 
 	def evaluate(self):
 		"""
 		Evaluating comparison between self.y_train and self.predictions
 		"""	
 
-		ac = accuracy_score(self.y_train, self.predictions)
-		cm = confusion_matrix(self.y_train, self.predictions)
+		metrics = []
 
-		# TODO: calculate F1 score if self.labeling_type == "IO"
+		for i, pred in enumerate(self.predictions):
+			ac = accuracy_score(self.y_train, pred)
+			cm = confusion_matrix(self.y_train, pred)
+			
+			## CONDER: calculate F1 score if self.labeling_type == "IO"
 
-		if self.verbose:
-			# Display accuracy score
-			print("\n")
-			print("Accuracy \n-----------------")
-			print(ac)
+			if self.verbose:
+				print("For model: {}".format(str(self.model_types[i])))
+				# Display accuracy score
+				print("\n")
+				print("Accuracy \n-----------------")
+				print(ac)
+				# Display confusion matrix
+				print("\n")
+				print("Confusion Matrix \n------------------")
+				print(cm)
 
-			# Display confusion matrix
-			print("\n")
-			print("Confusion Matrix \n------------------")
-			print(cm)
+			metrics.append({"Model type": str(self.model_types[i]), "Accuracy score": ac, "confusion_matrix": cm})
 
-		return ac, cm
+		return metrics
 
-	def getModel(self):
+	def getModels(self):
+		"""
+		Returns the list of models trained
+		"""
 		return self.model 
 
 
@@ -346,10 +361,12 @@ def main():
 	# io_vnpl.predict()
 	# io_vnpl.evaluate()
 
-	mec = MaxentClassifier
+	mods = [MaxentClassifier]
+
+	import ipdb; ipdb.set_trace()
 
 	## setting max_iter to be 10 so that we have a proof of concept.
-	npl = NPLearner(PTB, mec, default_feature_func, verbose=True, max_iter=100)
+	npl = NPLearner(PTB, mods, default_feature_func, verbose=True, max_iter=100)
 
 	npl.fit()
 	npl.predict()
