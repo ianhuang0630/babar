@@ -239,8 +239,8 @@ class NPLearner:
 		metrics = []
 
 		for i, pred in enumerate(self.predictions):
-			ac = accuracy_score(self.y_train, pred)
-			cm = confusion_matrix(self.y_train, pred)
+			ac = accuracy_score(self.y_test, pred)
+			cm = confusion_matrix(self.y_test, pred)
 			
 			## CONDER: calculate F1 score if self.labeling_type == "IO"
 
@@ -361,17 +361,18 @@ def main():
 	# io_vnpl.predict()
 	# io_vnpl.evaluate()
 
-	mods = [MaxentClassifier]
+	mods = [MaxentClassifier, ConditionalExponentialClassifier]
 
 	import ipdb; ipdb.set_trace()
 
 	## setting max_iter to be 10 so that we have a proof of concept.
-	npl = NPLearner(PTB, mods, default_feature_func, verbose=True, max_iter=100)
+	npl = NPLearner(PTB, mods, default_feature_func, verbose=True, max_iter=1)
 
 	npl.fit()
 	npl.predict()
-	accuracy, confusion_matrix = npl.evaluate()
+	metrics = npl.evaluate()
 
+	print(metrics)
 
 	# TODO: run on all other NLTK classifiers and some scikitlearn classifiers
 	# (using SklearnClassifier)
