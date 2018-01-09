@@ -156,7 +156,6 @@ class NPLearner:
 		
 		"""
 		For experimenting with different models and feature functions
-
 		Input:
 			data_path (str): path to the penntreebank
 			model (Model): input model
@@ -164,7 +163,6 @@ class NPLearner:
 			label_map (dict, optional): mapping from NP labeling to the integer
 				labels. (e.g. {"I-NP": 1, "O":0})
 			NP_tagging_type (str, optional): Either "IOB" or "IO"
-
 		"""
 
 		
@@ -279,7 +277,6 @@ def default_feature_func(sents):
 		feats (list): each element is a dictionary. Dictionaries contain the
 			name of the feature as the values and the values of the features
 			as dictionary values. 
-
 			e.g.[{"a": 3, "b": 2, "c": 1},
 				 {"a": 0, "b": 3, "c": 7}]
 	"""
@@ -365,4 +362,3 @@ def main():
 
 if __name__ == "__main__":
 	main()
-
