@@ -220,7 +220,11 @@ class NPLearner:
 			# ({"a": 1, "b": 4, "c": 3}, "spam")]
 
 		for i, mod in enumerate(self.model_types):
-			self.model[i] = mod.train(train_data, max_iter=self.max_iter[i])
+
+			try:
+				self.model[i] = mod.train(train_data, max_iter=self.max_iter[i])
+			except TypeError:
+				self.model[i] = mod.train(train_data)
 
 	def predict(self):
 		"""
@@ -361,9 +365,7 @@ def main():
 	# io_vnpl.predict()
 	# io_vnpl.evaluate()
 
-	mods = [MaxentClassifier, ConditionalExponentialClassifier]
-
-	import ipdb; ipdb.set_trace()
+	mods = [DecisionTreeClassifier, MaxentClassifier]
 
 	## setting max_iter to be 10 so that we have a proof of concept.
 	npl = NPLearner(PTB, mods, default_feature_func, verbose=True, max_iter=1)
