@@ -170,10 +170,12 @@ class NPLearner:
 		self.model_types = model_types
 		self.num_models = len(self.model_types)
 
-		self.model = [None] * self.num_models
+		self.model = {}
+
+		# self.model = [None] * self.num_models
 	
 		if type(max_iter) == int:
-			self.max_iter = [max_iter] * self.num_models
+			self.max_iter = {name:max_iter for name in self.model_types}
 		else:
 			self.max_iter = max_iter
 
@@ -200,7 +202,8 @@ class NPLearner:
 		self.X_train, self.X_test, self.y_train, self.y_test = \
 			train_test_split(X,y, test_size=0.2)
 
-		self.predictions = [None] * self.num_models
+		self.predictions = {}
+		# self.predictions = [None] * self.num_models
 
 	def fit(self):
 		"""
@@ -219,21 +222,44 @@ class NPLearner:
 			# ({"a": 5, "b": 1, "c": 1}, "ham"),
 			# ({"a": 1, "b": 4, "c": 3}, "spam")]
 
-		for i, mod in enumerate(self.model_types):
+		if self.verbose:
+			print("---------- TRAINING ----------")
+
+		for model_name in self.model_types:
+		# for i, mod in enumerate(self.model_types):
+
+			if self.verbose:
+				print("Training {}...".format(model_name))
+
+			mod = self.model_types[model_name]
 
 			try:
-				self.model[i] = mod.train(train_data, max_iter=self.max_iter[i])
+				self.model[model_name] = mod.train(train_data, max_iter=self.max_iter[model_name])
 			except TypeError:
-				self.model[i] = mod.train(train_data)
+				self.model[model_name] = mod.train(train_data)
+
+			if self.verbose:
+				print("Finished.\n")
 
 	def predict(self):
 		"""
 		Predict based on test set
 		"""
 		X = self.X_test
+		
+		if self.verbose:
+			print("---------- PREDICTING ----------")
 
-		for i,mod in enumerate(self.model):
-			self.predictions[i] = mod.classify_many(X)
+		for model_name in self.model:
+		# for i,mod in enumerate(self.model):
+
+			if self.verbose:
+				print("Predicting for test data for {}".format(model_name))
+			mod = self.model[model_name]
+			self.predictions[model_name] = mod.classify_many(X)
+
+			if self.verbose:
+				print("Finished. \n")
 
 	def evaluate(self):
 		"""
@@ -242,16 +268,20 @@ class NPLearner:
 
 		metrics = []
 
-		for i, pred in enumerate(self.predictions):
+		for model_name in self.predictions:
+		# for i, pred in enumerate(self.predictions):
+			pred = self.predictions[model_name] 
+
 			ac = accuracy_score(self.y_test, pred)
 			cm = confusion_matrix(self.y_test, pred)
 			
 			## CONDER: calculate F1 score if self.labeling_type == "IO"
 
 			if self.verbose:
-				print("For model: {}".format(str(self.model_types[i])))
-				# Display accuracy score
+				print("---------- EVALUATING ----------")
 				print("\n")
+				print("For model: {} \n-------------------".format(model_name))
+				# Display accuracy score
 				print("Accuracy \n-----------------")
 				print(ac)
 				# Display confusion matrix
@@ -259,7 +289,7 @@ class NPLearner:
 				print("Confusion Matrix \n------------------")
 				print(cm)
 
-			metrics.append({"Model type": str(self.model_types[i]), "Accuracy score": ac, "confusion_matrix": cm})
+			metrics.append({"Model type": model_name, "Accuracy score": ac, "confusion_matrix": cm})
 
 		return metrics
 
@@ -365,16 +395,18 @@ def main():
 	# io_vnpl.predict()
 	# io_vnpl.evaluate()
 
-	mods = [DecisionTreeClassifier, MaxentClassifier]
+
+	mods_dic = {"Decision Tree Classifier": DecisionTreeClassifier,
+				"Maximum Entropy Classifier": MaxentClassifier}
+
+	# mods = [DecisionTreeClassifier, MaxentClassifier]
 
 	## setting max_iter to be 10 so that we have a proof of concept.
-	npl = NPLearner(PTB, mods, default_feature_func, verbose=True, max_iter=1)
+	npl = NPLearner(PTB, mods_dic, default_feature_func, verbose=True, max_iter=1)
 
 	npl.fit()
 	npl.predict()
 	metrics = npl.evaluate()
-
-	print(metrics)
 
 	# TODO: run on all other NLTK classifiers and some scikitlearn classifiers
 	# (using SklearnClassifier)
