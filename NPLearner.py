@@ -486,7 +486,7 @@ def main():
 	# mods = [DecisionTreeClassifier, MaxentClassifier]
 
 	## setting max_iter to be 10 so that we have a proof of concept.
-	npl = NPLearner(PTB, mods, default_feature_func, verbose=True)
+	npl = NPLearner(PTB, mods, default_feature_func, verbose=True, random_state=42)
 
 	npl.fit()
 	npl.predict()
