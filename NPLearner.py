@@ -150,9 +150,9 @@ class VanillaNPLearner:
 		return accuracy, cm
 
 class NPLearner:
-	def __init__(self, data_path, model_types, feat_func,
+	def __init__(self, data_path, models, feat_func,
 				label_map = IOB_LABEL_MAP, NP_tagging_type="IOB", 
-				verbose=False, max_iter=100):
+				verbose=False, random_state=None):
 		
 		"""
 		For experimenting with different models and feature functions
@@ -162,23 +162,22 @@ class NPLearner:
 			feat_func (func): feature function
 			label_map (dict, optional): mapping from NP labeling to the integer
 				labels. (e.g. {"I-NP": 1, "O":0})
+
 			NP_tagging_type (str, optional): Either "IOB" or "IO"
+			verbose (bool, optional): True if you'd like evaluation to be
+				displayed.
+			random_state (int/None, optional): Set an integer for the train-test
+				split to be deterministic.
+
 		"""
 
 		
 		# model and feature functions being tested.
-		self.model_types = model_types
-		self.num_models = len(self.model_types)
-
-		self.model = {}
+		self.models = models
+		self.num_models = len(self.models)
 
 		# self.model = [None] * self.num_models
 	
-		if type(max_iter) == int:
-			self.max_iter = {name:max_iter for name in self.model_types}
-		else:
-			self.max_iter = max_iter
-
 		self.feat_func = feat_func
 
 		self.labeling_type = NP_tagging_type
@@ -200,10 +199,9 @@ class NPLearner:
 		y = [label for sent in self.all_parsed for (_, label) in sent]
 
 		self.X_train, self.X_test, self.y_train, self.y_test = \
-			train_test_split(X,y, test_size=0.2)
+			train_test_split(X,y, test_size=0.2, random_state=random_state)
 
-		self.predictions = {}
-		# self.predictions = [None] * self.num_models
+		self.predictions = [None] * self.num_models
 
 	def fit(self):
 		"""
@@ -225,18 +223,12 @@ class NPLearner:
 		if self.verbose:
 			print("---------- TRAINING ----------")
 
-		for model_name in self.model_types:
-		# for i, mod in enumerate(self.model_types):
+		for i, mod in enumerate(self.models):
 
 			if self.verbose:
-				print("Training {}...".format(model_name))
+				print("Training {}...".format(self.models[i].model_name))
 
-			mod = self.model_types[model_name]
-
-			try:
-				self.model[model_name] = mod.train(train_data, max_iter=self.max_iter[model_name])
-			except TypeError:
-				self.model[model_name] = mod.train(train_data)
+			mod.fit(train_data)
 
 			if self.verbose:
 				print("Finished.\n")
@@ -250,13 +242,12 @@ class NPLearner:
 		if self.verbose:
 			print("---------- PREDICTING ----------")
 
-		for model_name in self.model:
-		# for i,mod in enumerate(self.model):
+		for i,mod in enumerate(self.models):
 
 			if self.verbose:
-				print("Predicting for test data for {}".format(model_name))
-			mod = self.model[model_name]
-			self.predictions[model_name] = mod.classify_many(X)
+				print("Predicting for test data for {}".format(self.models[i].model_name))
+
+			self.predictions[i] = mod.predict(X)
 
 			if self.verbose:
 				print("Finished. \n")
@@ -268,9 +259,7 @@ class NPLearner:
 
 		metrics = []
 
-		for model_name in self.predictions:
-		# for i, pred in enumerate(self.predictions):
-			pred = self.predictions[model_name] 
+		for i, pred in enumerate(self.predictions): 
 
 			ac = accuracy_score(self.y_test, pred)
 			cm = confusion_matrix(self.y_test, pred)
@@ -280,7 +269,7 @@ class NPLearner:
 			if self.verbose:
 				print("---------- EVALUATING ----------")
 				print("\n")
-				print("For model: {} \n-------------------".format(model_name))
+				print("For model: {} \n-------------------".format(self.models[i].model_name))
 				# Display accuracy score
 				print("Accuracy \n-----------------")
 				print(ac)
@@ -289,7 +278,7 @@ class NPLearner:
 				print("Confusion Matrix \n------------------")
 				print(cm)
 
-			metrics.append({"Model type": model_name, "Accuracy score": ac, "confusion_matrix": cm})
+			metrics.append({"Model type": self.models[i].model_name, "Accuracy score": ac, "confusion_matrix": cm})
 
 		return metrics
 
@@ -297,22 +286,112 @@ class NPLearner:
 		"""
 		Returns the list of models trained
 		"""
-		return self.model 
+		return self.models
 
 
 """
-Wrapper class for the classifier -- unused currently. May be more useful
-when we are building Neural Networks to do similar jobs
+Wrapper classes for the classifier -- unused currently. May be more useful
+when we are building Neural Networks to do similar jobs. These require different
+classes because of how the training and prediction functions are called 
+different things in different 
 """
-class Model:
-	def __init__(self, model):
-		self.model = model
+try:
+    import cPickle as pickle
+except:
+    import pickle
+
+class NLTK_Model:
+	def __init__(self, model_class, model_name, models_dir="models/", 
+				save_override=True, optional_args = {}):
+		"""
+		A wrapper class for NLTK classifiers
+
+		Input:
+			model_class: a class pointer
+			model_name (str): model's name, used for saving
+			models_dir (str, optional): model's directory
+			save_override (bool, optional): True if the save() function will 
+				override the file containing a model if it already exists.
+			optional_args (dict, optional): Dictionary for optional arguments
+				in fit() method.
+
+		"""
+		self.model_class = model_class 
+		self.model = None ## will be changed when fit() is run
+		self.model_name = model_name
+		self.save_override = save_override
+		self.models_dir = models_dir
+
+		self.optional_args = optional_args
 
 	def fit(self, train_data):
-		self.model.train(train_data)
+		self.model = self.model_class.train(train_data, **self.optional_args)
 
 	def predict(self, test_data):
 		return self.model.classify_many(test_data)
+
+	def save(self, location):
+
+		file_name = "nltk_" + self.model_name + ".pkl"
+		file_path = os.path.join(self.models_dir, file_name)
+
+		if os.path.exists(file_path) and not self.save_override:
+			raise ValueError("{} already exists. Override is set to false."\
+							.format(file_path))
+
+		else:
+			pickle.dump(self.model, open(file_path,"wb"))
+
+class Keras_Model:
+
+	def __init__(self, model, model_name, conversion_func=lambda x: x, models_dir="models/",save_override=True):
+		"""
+		A wrapper class for Keras classifiers
+
+		Input:
+			model (Keras.model): a class pointer
+			model_name (str): model's name, used for saving
+
+			conversion_func (str, conversion): conversion of features and ground
+				truth labels to compatible type for Keras models
+
+			models_dir (str, optional): model's directory
+			save_override (bool, optional): True if the save() function will override
+				the file containing a model if it already exists.
+		"""
+		self.model = model
+		self.model_name = model_name
+		self.save_override = save_override
+		self.models_dir = models_dir
+
+		self.conversion_func = conversion_func
+
+	def fit(self, train_data):
+
+		## CONDER: some processing needed here to convert train_data type to
+		## type needed to run the model fit.
+
+		self.model = self.model.fit(train_data)
+
+	def predict(self, test_data):
+
+		## CONDER: some processing needed here to convert train_data type to
+		## type needed to run the model fit.
+
+		return self.model.predict(test_data)
+
+	def save(self):
+
+		file_name = "keras_" + self.model_name + ".h5"
+
+		file_path = os.path.join(self.models_dir, file_name)
+
+		if os.path.exists(file_path) and not self.save_override:
+			raise ValueError("{} already exists. Override is set to false."\
+							.format(file_path))
+
+		else:
+			self.model.save(file_path)
 
 """
 template feature function
@@ -396,13 +475,18 @@ def main():
 	# io_vnpl.evaluate()
 
 
-	mods_dic = {"Decision Tree Classifier": DecisionTreeClassifier,
-				"Maximum Entropy Classifier": MaxentClassifier}
+	# mods_dic = {"Decision Tree Classifier": DecisionTreeClassifier,
+	# 			"Maximum Entropy Classifier": MaxentClassifier}
+
+
+	mods = [ NLTK_Model(MaxentClassifier, "Max_entClassifier", optional_args={"max_iter":1}) ]
+
+
 
 	# mods = [DecisionTreeClassifier, MaxentClassifier]
 
 	## setting max_iter to be 10 so that we have a proof of concept.
-	npl = NPLearner(PTB, mods_dic, default_feature_func, verbose=True, max_iter=1)
+	npl = NPLearner(PTB, mods, default_feature_func, verbose=True)
 
 	npl.fit()
 	npl.predict()
