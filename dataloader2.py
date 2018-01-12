@@ -198,15 +198,24 @@ class PennTreeLoader:
 					counter = 0
 					issue = False
 
+					# because lazy evaluation doesn't work in some python versions 
+					next_eq = False
+
 					for idx,element in enumerate(temp):
 
 						this_word = element[0]
 						tagged_word = self.tagged[file_num][counter][0]
 
-						if this_word == tagged_word \
-							or (counter+1 < len(self.tagged[file_num]) and \
-								temp[idx+1][0] == self.tagged[file_num][counter+1][0]):
-							
+						# because lazy evaluation doesn't work in some python versions
+						if counter+1 < len(self.tagged[file_num]) and idx+1 < len(temp): 
+							if temp[idx+1][0] == self.tagged[file_num][counter+1][0]:
+								next_eq = True
+							else:
+								next_eq = False
+						else:
+							next_eq = False
+
+						if this_word == tagged_word or next_eq:
 							# add to finalized.
 							if this_word == tagged_word:
 
@@ -431,11 +440,11 @@ def main():
 	pennloader = PennTreeLoader("/Users/ian.huang/Documents/Projects/babar/treebank/", DEFAULT_LABEL_MAP, in_sentences=True, verbose=True)
 	
 
-	raw = pennloader.readRaw()
+	# raw = pennloader.readRaw()
 	parsed = pennloader.readParsed()
 	pos = pennloader.readPOS()
 
-	print("Length of list for rawdata: {}".format(raw.size))
+	# print("Length of list for rawdata: {}".format(raw.size))
 	print("Length of list for parseddata: {}".format(parsed.size))
 	print("length of list for POSdata: {}".format(pos.size))
 
