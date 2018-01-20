@@ -72,7 +72,7 @@ class PennTreeLoader:
 
 		all_files = []
 
-		for file in os.listdir(self.raw_path):
+		for file in sorted(os.listdir(self.raw_path)):
 			if file != "README":
 				this_file = []
 				with open(os.path.join(self.raw_path, file)) as f:
@@ -150,7 +150,7 @@ class PennTreeLoader:
 
 		file_num = 0
 
-		for file in os.listdir(self.parsed_path):
+		for file in sorted(os.listdir(self.parsed_path)):
 			if file != "README":
 				over_all_files.append([])
 				temp = []
@@ -287,7 +287,7 @@ class PennTreeLoader:
 		else:
 			all_files = []
 
-			for file in os.listdir(self.tagged_path):
+			for file in sorted(os.listdir(self.tagged_path)):
 
 				if file != "README":
 
