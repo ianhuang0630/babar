@@ -45,6 +45,12 @@ class Glove:
 		return sorted(word_dist, key=itemgetter(1), reverse=False)[:N]
 
 	
+	def getVec(self, word):
+		"""
+		Inputs:
+			word (str): input word
+		"""
+		return self.word2vec[word]
 
 	def areSimilar(self, words, threshold, dist_func=None):
 		## TODO: come up with threshold
